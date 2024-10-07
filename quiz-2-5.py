@@ -15,6 +15,9 @@ B.orient_dcm(N, BN)
 B.set_ang_vel(N, wBN)
 
 def matcpop(x, R):
+    '''
+    Produces a Matrix Cross Product Operator from provided Sympy vector (x) and reference frame (R) that the vector is defined in
+    '''
     x1 = x.to_matrix(R)[0]
     x2 = x.to_matrix(R)[1]
     x3 = x.to_matrix(R)[2]
