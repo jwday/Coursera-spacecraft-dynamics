@@ -198,14 +198,15 @@ def getPRVfromDCM(C):
         phi = -phic
 
     e = n
-    return phi,e
+    return e, phi
 
 
-def getPRVfromEuler(a, b, c, rotOrder):
+def getPRVfromEuler(angles, rotOrder):
     '''
     Return the Principle Rotation Vector (PRV) in terms of rotation angle (phi) and unit vector (e) from Euler angle inputs (including rotation order)
     This function leverages the sympy.physics.mechanics package to shortcut some of the steps
     '''
+    a, b, c = angles
     psi, theta, phi = sm.symbols('psi, theta, phi')
     N = ReferenceFrame('N', indices=('1', '2', '3'))
     B = ReferenceFrame('B', indices=('1', '2', '3'))
@@ -236,3 +237,56 @@ def subPRVs(phi,e,phi1,e1):
     phi2 = 2*np.arccos(cp*cp1 + sp*sp1*np.dot(e,e1))
     e2   = (cp1*sp*e - cp*sp1*e1 + sp*sp1*np.cross(e,e1))/np.sin(phi2/2)
     return phi2,e2
+
+def DCMfromQuaternion(b):
+    # Build four matrices then add them together
+    # 1. Base diagonal (diagonal of b0**2)
+    # 2. Extension diagonal (b1, b2, b3 components of alternating sign)
+    # 3. Base off-diagonal (2*br*bc components)
+    # 4. Extension off-diagonal (2*b0*bd components)
+
+    # Build the diagonal components
+    base_diag = np.identity(3)*(b[0]**2)
+    ext_diag = np.zeros((3,3))
+    ext_diag_row_idx, ext_diag_col_idx = np.diag_indices(3)
+    for i in zip(ext_diag_row_idx, ext_diag_col_idx):
+        row = i[0]
+        col = i[1]
+        alt_b_val = b[row+1]**2
+        b_group = -(b[1]**2)-(b[2]**2)-(b[3]**2)
+        val = b_group + 2*alt_b_val
+        ext_diag[row,col] = val
+
+    # Bulld the off-diagonal components
+    base_off_diag = np.zeros((3,3))
+    ext_off_diag = np.zeros((3,3))
+    triu_row_idx, triu_col_idx = np.triu_indices(3, k=1)
+
+    for i in zip(triu_row_idx, triu_col_idx):
+        row = i[0]
+        col = i[1]
+        val1 = 2*b[row+1]*b[col+1]
+        val2 = 2*b[0]*b[4-(row+col)]
+        base_off_diag[row,col] = val1
+        ext_off_diag[row,col] = val2
+    base_off_diag = base_off_diag + base_off_diag.T
+    ext_off_diag = ext_off_diag + ext_off_diag.T
+
+    sign_array = np.ones((3,3), dtype=int)
+    sign_array[::2,::2] = -1
+    sign_array[1::2,1::2] = -1
+    ext_off_diag = np.multiply(ext_off_diag, sign_array)
+
+    # Add the components together
+    return base_diag + base_off_diag + ext_diag + ext_off_diag
+
+def quaternionFromDCM(C):
+    '''
+    Use Sheppard's method to compute the quaternion parameters from a DCM
+    '''
+    b0_2 = (1/4)*(1+np.trace(C))
+    b1_2 = (1/4)*(1+2*C[0,0]-np.trace(C))
+    b2_2 = (1/4)*(1+2*C[1,1]-np.trace(C))
+    b3_2 = (1/4)*(1+2*C[2,2]-np.trace(C))
+
+    for i 
